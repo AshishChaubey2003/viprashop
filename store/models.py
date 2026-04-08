@@ -4,10 +4,10 @@ import uuid
 
 
 class Product(models.Model):
-    name = models.CharField(max_length=200)          # Product ka naam
-    description = models.TextField()                  # Product ki details
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Price in INR
-    image_emoji = models.CharField(max_length=10, default='📦')   # Emoji
+    name = models.CharField(max_length=200)          
+    description = models.TextField()                  
+    price = models.DecimalField(max_digits=10, decimal_places=2) 
+    image_emoji = models.CharField(max_length=10, default='📦')   
 
     def __str__(self):
         return self.name

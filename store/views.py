@@ -13,7 +13,7 @@ from .models import Product, Order, OrderItem
 # Logger setup - debugging ke liye
 logger = logging.getLogger(__name__)
 
-# Stripe ko apni secret key do
+
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
@@ -27,9 +27,7 @@ def get_or_create_session_key(request):
     return request.session.session_key
 
 
-# ─────────────────────────────────────────────
-# VIEW 1: Main page
-# ─────────────────────────────────────────────
+
 def index(request):
     session_key = get_or_create_session_key(request)
 
@@ -49,9 +47,7 @@ def index(request):
     return render(request, 'store/index.html', context)
 
 
-# ─────────────────────────────────────────────
-# VIEW 2: Checkout
-# ─────────────────────────────────────────────
+
 @require_POST
 def create_checkout_session(request):
     """
@@ -62,7 +58,6 @@ def create_checkout_session(request):
     """
     session_key = get_or_create_session_key(request)
 
-    # Form se quantities nikalo
     quantities = {}
     for product in Product.objects.all():
         qty_str = request.POST.get(f'qty_{product.id}', '0')
@@ -73,16 +68,16 @@ def create_checkout_session(request):
         if qty > 0:
             quantities[product.id] = qty
 
-    # Kuch select nahi kiya?
+    
     if not quantities:
         return redirect('index')
 
     products_in_cart = Product.objects.filter(id__in=quantities.keys())
 
-    # Total calculate karo
+  
     total = sum(p.price * quantities[p.id] for p in products_in_cart)
 
-    # transaction.atomic() - ya saara kaam ho ya kuch bhi nahi
+   
     with transaction.atomic():
         order = Order.objects.create(
             session_key=session_key,
@@ -100,7 +95,8 @@ def create_checkout_session(request):
                 price_at_purchase=product.price,
             )
 
-            # Stripe ka format
+           
+            
             line_items.append({
                 'price_data': {
                     'currency': 'inr',
@@ -113,7 +109,7 @@ def create_checkout_session(request):
                 'quantity': qty,
             })
 
-    # Stripe Checkout Session banao
+  
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -138,9 +134,7 @@ def create_checkout_session(request):
         return redirect('index')
 
 
-# ─────────────────────────────────────────────
-# VIEW 3: Payment Success
-# ─────────────────────────────────────────────
+
 def order_success(request):
     """
     Stripe payment ke baad user yahan aata hai.
@@ -174,17 +168,13 @@ def order_success(request):
     return redirect('index')
 
 
-# ─────────────────────────────────────────────
-# VIEW 4: Payment Cancel
-# ─────────────────────────────────────────────
+
 def order_cancel(request):
     """User ne payment cancel ki - wapas main page"""
     return redirect('index')
 
 
-# ─────────────────────────────────────────────
-# VIEW 5: Stripe Webhook
-# ─────────────────────────────────────────────
+
 @csrf_exempt
 @require_POST
 def stripe_webhook(request):
@@ -197,7 +187,7 @@ def stripe_webhook(request):
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
 
     try:
-        # Signature verify karo - fake webhook se bachao
+        
         event = stripe.Webhook.construct_event(
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
@@ -222,5 +212,5 @@ def stripe_webhook(request):
                 except Order.DoesNotExist:
                     logger.error(f"Order {order_id} not found")
 
-    # Stripe ko 200 do - warna woh dobara try karega
+    
     return HttpResponse(status=200)
