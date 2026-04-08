@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VipraTech Store</title>
+  <!-- Bootstrap 5 - internet se aa raha hai, local file nahi chahiye -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; }
+    .product-card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      transition: transform 0.2s;
+    }
+    .product-card:hover { transform: translateY(-4px); }
+    .product-emoji { font-size: 4rem; }
+    .price-tag {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #0d6efd;
+    }
+    .order-card {
+      border-left: 4px solid #198754;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .badge-paid {
+      background-color: #198754;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+    #total-display {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark bg-dark px-4 py-3 mb-4">
+  <span class="navbar-brand">🛒 VipraTech Store</span>
+  <span class="text-white-50 small">Test Mode — Stripe Powered</span>
+</nav>
+
+<div class="container pb-5">
+
+  <!-- SECTION 1: PRODUCTS -->
+  <h4 class="mb-3 fw-bold">Products</h4>
+
+  <form method="POST" action="{% url 'checkout' %}" id="checkout-form">
+    {% csrf_token %}
+
+    <div class="row g-4 mb-4">
+      {% for product in products %}
+      <div class="col-md-4">
+        <div class="card product-card h-100 p-3">
+          <div class="text-center product-emoji mb-2">{{ product.image_emoji }}</div>
+          <div class="card-body text-center">
+            <h5 class="card-title fw-bold">{{ product.name }}</h5>
+            <p class="card-text text-muted small">{{ product.description }}</p>
+            <div class="price-tag mb-3">₹{{ product.price }}</div>
+
+            <div class="d-flex align-items-center justify-content-center gap-3">
+              <label class="fw-semibold">Qty:</label>
+              <input
+                type="number"
+                name="qty_{{ product.id }}"
+                value="0"
+                min="0"
+                max="10"
+                class="form-control text-center qty-input"
+                style="width: 80px;"
+                data-price="{{ product.price }}"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  
+    <div class="card border-0 shadow-sm p-4 mb-5">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div id="total-display">Total: ₹<span id="total-amount">0.00</span></div>
+        <button
+          type="submit"
+          class="btn btn-primary btn-lg px-5"
+          id="buy-btn"
+          disabled
+        >
+          💳 Buy Now
+        </button>
+      </div>
+      <p class="text-muted small mt-2 mb-0">
+        Test card: <code>4242 4242 4242 4242</code> | Expiry: koi bhi future date | CVV: koi bhi 3 digits
+      </p>
+    </div>
+
+  </form>
+
+  <!-- SECTION 2: MY ORDERS -->
+  <h4 class="mb-3 fw-bold">My Orders</h4>
+
+  {% if orders %}
+    {% for order in orders %}
+    <div class="order-card p-3 mb-3 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <span class="fw-bold">Order #{{ order.id }}</span>
+          <span class="text-muted small ms-2">{{ order.created_at|date:"d M Y, h:i A" }}</span>
+        </div>
+        <span class="badge-paid">✅ PAID</span>
+      </div>
+
+      <ul class="list-unstyled mb-1">
+        {% for item in order.items.all %}
+        <li class="text-muted small">
+          {{ item.product.image_emoji }} {{ item.product.name }}
+          × {{ item.quantity }}
+          = ₹{{ item.subtotal }}
+        </li>
+        {% endfor %}
+      </ul>
+
+      <div class="fw-semibold text-end">Total: ₹{{ order.total_amount }}</div>
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="text-center text-muted py-4 border rounded">
+      <p class="mb-0">Abhi koi order nahi hai. Kuch kharido! 🛍️</p>
+    </div>
+  {% endif %}
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  const qtyInputs = document.querySelectorAll('.qty-input');
+  const totalSpan = document.getElementById('total-amount');
+  const buyBtn   = document.getElementById('buy-btn');
+  const form     = document.getElementById('checkout-form');
+
+  
+  function recalculate() {
+    let total = 0;
+    qtyInputs.forEach(input => {
+      const qty   = parseInt(input.value) || 0;
+      const price = parseFloat(input.dataset.price) || 0;
+      total += qty * price;
+    });
+    totalSpan.textContent = total.toFixed(2);
+    
+    buyBtn.disabled = total === 0;
+  }
+
+
+  qtyInputs.forEach(input => input.addEventListener('input', recalculate));
+
+  // Double submit prevention - button disable karo submit pe
+  form.addEventListener('submit', function(e) {
+    if (buyBtn.disabled) {
+      e.preventDefault();
+      return;
+    }
+    buyBtn.disabled = true;
+    buyBtn.textContent = '⏳ Redirecting to payment...';
+  });
+
+  recalculate();
+</script>
+
+</body>
+</html>
